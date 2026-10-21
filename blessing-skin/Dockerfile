@@ -2,17 +2,12 @@ FROM php:8.1-fpm-alpine
 LABEL maintainer="dainsleif@yeah.com"
 ARG VERSION
 
-# ============================================================================
-# CVE-2026-109618 / CVE-2026-109619 官方 8.1 backport 补丁
-# - 用镜像自带的 $PHP_URL / $PHP_SHA256 取回与官方二进制完全一致的 8.1.34 源码
-# - 按 docker-library 官方构建顺序先打 3 个 out-of-tree 补丁
-# - 再叠加 php-src 分支 PHP-8.1-CVE-2026-109618-109619 的补丁
-#   (commit 1d7dec178a094e6e75b229ce22754045f8c6070a)
-# - 原地重建 /usr/local 下的 PHP：版本号仍是 8.1.34，php-fpm / 扩展目录 /
-#   www-data 用户 / php.ini 位置全部不变，只是把有洞的二进制换掉
-# 代价：镜像构建多约 5~15 分钟（一次编译）。日常 no-cache 重建才会有这个开销。
-# ============================================================================
+# CVE-2026-109618 / CVE-2026-109619：官方 8.1 backport（commit 1d7dec1），
+# 原地重建 PHP 8.1.34，版本号/路径/用户均不变。
+# 源码包随仓库提供，仍用 $PHP_SHA256 校验；不在构建期访问 www.php.net
+# （该站 CDN 会中途断流，curl exit 92）。构建多耗约 5~15 分钟。
 COPY cve-2026-109618-109619.patch /tmp/cve.patch
+COPY php-8.1.34.tar.xz /tmp/php.tar.xz
 
 RUN set -eux; \
     apk add --no-cache --virtual .build-deps \
@@ -40,21 +35,20 @@ RUN set -eux; \
     ; \
     mkdir -p /usr/src; \
     cd /usr/src; \
-    curl -fsSL -o php.tar.xz "$PHP_URL"; \
-    echo "$PHP_SHA256 *php.tar.xz" | sha256sum -c -; \
+    echo "$PHP_SHA256 */tmp/php.tar.xz" | sha256sum -c -; \
     mkdir -p /usr/src/php; \
-    tar -xJf php.tar.xz -C /usr/src/php --strip-components=1; \
-    rm -f php.tar.xz; \
+    tar -xJf /tmp/php.tar.xz -C /usr/src/php --strip-components=1; \
+    rm -f /tmp/php.tar.xz; \
     cd /usr/src/php; \
-    curl -fL 'https://github.com/php/php-src/commit/577b8ae4226368e66fee7a9b5c58f9e2428372fc.patch?full_index=1' -o 11678.patch; \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 3 'https://github.com/php/php-src/commit/577b8ae4226368e66fee7a9b5c58f9e2428372fc.patch?full_index=1' -o 11678.patch; \
     echo '6edc20c3bb3e7cc13515abce7f2fffa8ebea6cf7469abfbc78fcdc120350b239 *11678.patch' | sha256sum -c -; \
     patch -p1 < 11678.patch; \
     rm 11678.patch; \
-    curl -fL 'https://github.com/php/php-src/commit/a5df26691d1b1f71b964b869510473a5d5413999.patch?full_index=1' -o 19131.patch; \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 3 'https://github.com/php/php-src/commit/a5df26691d1b1f71b964b869510473a5d5413999.patch?full_index=1' -o 19131.patch; \
     echo 'c98c01c74d3a6da197116f8511b16fed361ca6bbb6a8af8df629a933f541c213 *19131.patch' | sha256sum -c -; \
     patch --reverse -p1 < 19131.patch; \
     rm 19131.patch; \
-    curl -fL 'https://github.com/php/php-src/commit/67259e451d5d58b4842776c5696a66d74e157609.patch?full_index=1' -o 14834.patch; \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 3 'https://github.com/php/php-src/commit/67259e451d5d58b4842776c5696a66d74e157609.patch?full_index=1' -o 14834.patch; \
     echo 'ed10a1b254091ad676ed204e55628ecbd6c8962004d6185a1821cedecd526c0f *14834.patch' | sha256sum -c -; \
     filterdiff -x '*/NEWS' 14834.patch | patch -p1; \
     rm 14834.patch; \
