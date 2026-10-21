@@ -14,6 +14,7 @@ RUN wget https://github.com/bs-community/blessing-skin-server/releases/download/
     && unzip /tmp/bs.zip -d /var/www/html/ \
     && rm /tmp/bs.zip
 RUN sed -i 's/^listen = .*/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf \
+    && echo "php_admin_flag[session.upload_progress.enabled] = off" >> /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=redis/' .env.example \
     && sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=redis/' .env.example \
     && sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=redis/' .env.example \

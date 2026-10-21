@@ -57,6 +57,8 @@
 
 15. 运行 `docker compose up -d` 启动容器。
 
+16. 强烈建议安装 [skin-fix](https://github.com/Dainsleif233/skin-fix) 插件以封堵 [#676](https://github.com/bs-community/blessing-skin-server/pull/676) 和 [#684](https://github.com/bs-community/blessing-skin-server/issues/684)，使用超级管理员账号在 `插件管理` 的 `从远程下载` 中填入 `https://github.com/Dainsleif233/skin-fix/archive/refs/heads/main.zip` 来完成安装，完成后启用插件即可。
+
 ### 独立 Client ID 和公共 ClientID
 
 要想为每个启动器创建独立的 Client ID，需要在 `OAuth2 应用` 中创建一个新的应用，应用名为启动器名，回调 URL 中填入 `https://skin.jsumc.fun/yggc/client/public`，再将新的 Client ID 提交给启动器开发者。
