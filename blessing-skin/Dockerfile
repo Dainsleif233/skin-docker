@@ -112,9 +112,16 @@ RUN set -eu; \
         echo ">>> retry $n/5 in 15s"; \
         sleep 15; \
     done
-RUN wget --tries=5 --waitretry=5 --retry-connrefused https://github.com/bs-community/blessing-skin-server/releases/download/${VERSION}/blessing-skin-server-${VERSION}.zip -O /tmp/bs.zip \
-    && unzip /tmp/bs.zip -d /var/www/html/ \
-    && rm /tmp/bs.zip
+RUN set -eu; \
+    n=0; \
+    until curl -fsSL --retry 3 --retry-all-errors --retry-delay 3 -o /tmp/bs.zip "https://github.com/bs-community/blessing-skin-server/releases/download/${VERSION}/blessing-skin-server-${VERSION}.zip"; do \
+        n=$((n + 1)); \
+        if [ "$n" -ge 5 ]; then echo "download failed after $n attempts" >&2; exit 1; fi; \
+        echo ">>> retry $n/5 in 15s"; \
+        sleep 15; \
+    done; \
+    unzip /tmp/bs.zip -d /var/www/html/; \
+    rm /tmp/bs.zip
 RUN sed -i 's/^listen = .*/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf \
     && echo "php_admin_flag[session.upload_progress.enabled] = off" >> /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=redis/' .env.example \
