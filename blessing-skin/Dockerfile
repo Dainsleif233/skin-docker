@@ -102,15 +102,17 @@ RUN set -eux; \
     php --version
 
 # 扩展在打过补丁的 PHP 之上编译，避免与旧头文件/旧 ABI 混用
+# pecl.php.net 会偶发 500，失败重试
 ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
-RUN install-php-extensions \
-    pdo_mysql \
-    pdo_pgsql \
-    gd \
-    zip \
-    redis \
-    intl
-RUN wget https://github.com/bs-community/blessing-skin-server/releases/download/${VERSION}/blessing-skin-server-${VERSION}.zip -O /tmp/bs.zip \
+RUN set -eu; \
+    n=0; \
+    until install-php-extensions pdo_mysql pdo_pgsql gd zip redis intl; do \
+        n=$((n + 1)); \
+        if [ "$n" -ge 5 ]; then echo "install-php-extensions failed after $n attempts" >&2; exit 1; fi; \
+        echo ">>> retry $n/5 in 15s"; \
+        sleep 15; \
+    done
+RUN wget --tries=5 --waitretry=5 --retry-connrefused https://github.com/bs-community/blessing-skin-server/releases/download/${VERSION}/blessing-skin-server-${VERSION}.zip -O /tmp/bs.zip \
     && unzip /tmp/bs.zip -d /var/www/html/ \
     && rm /tmp/bs.zip
 RUN sed -i 's/^listen = .*/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf \
